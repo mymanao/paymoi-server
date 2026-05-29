@@ -49,7 +49,9 @@ app.post("/donate/pending", ({body}: { body: any }) => {
     return {success: true, error: null};
 });
 
-app.listen(6767);
+app.listen(6767, ({ port }) => {
+    console.log(`listening on port ${port}`);
+});
 
 await startListeners((from, to, amount) => {
     const key = `${to}-${from}`;
