@@ -70,3 +70,13 @@ await startListeners((from, to, amount) => {
         pending.delete(key);
     }
 });
+
+setInterval(() => {
+    const now = Date.now();
+    pending.forEach((info, key) => {
+        if (now - info.timestamp > 1000 * 60 * 5) {
+            pending.delete(key);
+            console.log(`removed expired pending donation: ${key}`);
+        }
+    });
+}, 1000 * 60);
