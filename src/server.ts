@@ -38,28 +38,35 @@ app.post("/donate/pending", ({body}: { body: any }) => {
     if (!from || !to || !amount) {
         return {success: false, error: `Incomplete data`};
     }
-    pending.set(`${to.toLowerCase()}-${Date.now()}`, {
+    pending.set(`${to.toLowerCase()}-${from.toLowerCase()}`, {
         donator: donator || "Anonymous",
         message,
         amount,
         timestamp: Date.now(),
     });
 
-    console.log(`pending ${to.toLowerCase()}-${Date.now()}`);
-    return { success: true, error: null };
+    console.log(`pending ${to.toLowerCase()}-${from.toLowerCase()}`);
+    return {success: true, error: null};
 });
 
 app.listen(6767);
 
-await startListeners((to, amount) => {
-    if (walletSocket && walletSocket.has(to)) {
-        const ws = walletSocket.get(to);
-        ws.send({
-            event: "donation_received",
-            amount,
-            currency: "USDC",
-            timestamp: new Date().toISOString()
-        });
-        console.log(`sent notification to ${to} about donation of ${amount} USDC`);
+await startListeners((from, to, amount) => {
+    const key = `${to}-${from}`;
+    if (pending.has(key)) {
+        const info = pending.get(key);
+        if (walletSocket && walletSocket.has(to) && parseFloat(amount) === parseFloat(info?.amount || "0")) {
+            const ws = walletSocket.get(to);
+            ws.send({
+                event: "donation_received",
+                donator: info?.donator,
+                message: info?.message,
+                amount,
+                currency: "USDC",
+                timestamp: new Date().toISOString()
+            });
+            console.log(`sent notification to ${to} about donation of ${amount} USDC`);
+        }
+        pending.delete(key);
     }
 });
