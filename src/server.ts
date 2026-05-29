@@ -2,6 +2,12 @@ import {Elysia} from "elysia";
 import {startListeners} from "./listeners.ts";
 
 const walletSocket = new Map<string, any>();
+const pending = new Map<string, {
+    donator: string,
+    amount: string,
+    message: string,
+    timestamp: number,
+}>()
 
 const app = new Elysia();
 
@@ -25,7 +31,23 @@ app.ws("/paymoi", {
             }
         });
     }
-}).listen(4700);
+});
+
+app.post("/donate/pending", ({body}: { body: any }) => {
+    const {from, to, amount, donator, message} = body;
+    if (!from || !to || !amount) {
+        return {success: false, error: `Incomplete data`};
+    }
+    pending.set(`${to.toLowerCase()}-${Date.now()}`, {
+        donator: donator || "Anonymous",
+        message,
+        amount,
+        timestamp: Date.now(),
+    });
+
+    console.log(`pending ${to.toLowerCase()}-${Date.now()}`);
+    return { success: true, error: null };
+});
 
 await startListeners((to, amount) => {
     if (walletSocket && walletSocket.has(to)) {
