@@ -49,6 +49,8 @@ app.post("/donate/pending", ({body}: { body: any }) => {
     return { success: true, error: null };
 });
 
+app.listen(6767);
+
 await startListeners((to, amount) => {
     if (walletSocket && walletSocket.has(to)) {
         const ws = walletSocket.get(to);
