@@ -64,10 +64,10 @@ app.listen(6767, ({port}) => {
     console.log(`listening on port ${port}`);
 });
 
-await startListeners(walletSocket, (from, to, amount, txhash) => {
+await startListeners(walletSocket, (_from, to, amount, txhash) => {
     if (pending.has(txhash)) {
         const info = pending.get(txhash);
-        if (walletSocket && walletSocket.has(to)) {
+        if (walletSocket.has(to)) {
             const ws = walletSocket.get(to);
             ws.send({
                 event: "donation_received",
