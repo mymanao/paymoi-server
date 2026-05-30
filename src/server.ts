@@ -3,7 +3,7 @@ import {startListeners} from "./listeners.ts";
 import {rateLimit} from 'elysia-rate-limit'
 import {deletePending, findPending, initDatabase, sqlite} from "./db.ts";
 import {isAddress, verifyMessage} from "ethers";
-import type {Donations, Message, Streamers} from "./types.ts";
+import type {PendingDonation, Message, Streamer, Donation} from "./types.ts";
 
 const walletSocket = new Map<string, any>();
 await initDatabase()
@@ -21,11 +21,27 @@ app.ws("/paymoi", {
         console.log("connected");
     },
     message(ws, msg: Message) {
-        if (!msg || typeof msg !== "object" || !msg.wallet || !msg.type) return;
+        if (!msg || typeof msg !== "object" || !msg.wallet || !msg.type || !msg.wallet || !msg.signature) return;
         if (msg.type === "register") {
             const wallet = msg.wallet.toLowerCase();
             if (!isAddress(wallet)) {
                 ws.send({status: "error", error: "Invalid wallet address"});
+                return;
+            }
+
+            try {
+                let timestamp = parseInt(msg.message.split('_')[1] || "0");
+                if (Math.abs(Date.now() - timestamp) > 1000 * 60 * 5) {
+                    ws.send({status: "error", error: "Signature expired"});
+                    return;
+                }
+                const addr = verifyMessage(msg.message, msg.signature);
+                if (addr.toLowerCase() !== wallet) {
+                    ws.send({status: "error", error: "Invalid signature"});
+                    return;
+                }
+            } catch (e) {
+                ws.send({status: "error", error: "Invalid signature"});
                 return;
             }
 
@@ -59,7 +75,7 @@ app.get("/", () => {
 });
 
 app.post("/v1/donate/pending", async ({body}: { body: any }) => {
-    const {from, to, amount, donator, message, txhash} = body as Donations;
+    const {from, to, amount, donator, message, txhash} = body as PendingDonation;
     if (!from || !to || !amount || !txhash) {
         return {success: false, error: `Incomplete data`};
     }
@@ -85,7 +101,7 @@ app.post("/v1/streamers", async ({body}: { body: any }) => {
         web_config,
         message,
         signature
-    } = body as Omit<Streamers, "created_at"> & {
+    } = body as Omit<Streamer, "created_at"> & {
         message: string,
         signature: string
     };
@@ -162,6 +178,50 @@ app.get("/v1/streamers/wallet/:addr", async ({params}) => {
     }
     return {success: true, error: null, streamer};
 });
+
+app.post("/v1/donations", async ({body, set}) => {
+    const {tx_hash, streamer_wallet_addr, donator_wallet_addr, donator_name, amount, message} = body as Donation
+
+    if (!tx_hash || !streamer_wallet_addr || !donator_wallet_addr || !amount) {
+        set.status = 400
+        return {success: false, error: "Incomplete data"}
+    }
+    if (!isAddress(streamer_wallet_addr) || !isAddress(donator_wallet_addr)) {
+        set.status = 400
+        return {success: false, error: "Invalid wallet address"}
+    }
+
+    await sqlite`
+        INSERT INTO donations (id, tx_hash, streamer_wallet_addr, donator_wallet_addr, donator_name, amount, message)
+        VALUES (${crypto.randomUUID()}, ${tx_hash}, ${streamer_wallet_addr.toLowerCase()},
+                ${donator_wallet_addr.toLowerCase()}, ${donator_name ?? "Anonymous"}, ${amount},
+                ${message ?? ""}) ON CONFLICT(tx_hash) DO NOTHING
+    `
+    return {success: true, error: null}
+})
+
+app.get("/v1/donations/:username", async ({params, set}) => {
+    const {username} = params
+
+    const streamer = await sqlite`
+        SELECT wallet_addr
+        FROM streamers
+        WHERE username = ${username}
+    `.then(res => res[0] || null)
+
+    if (!streamer) {
+        set.status = 404
+        return {success: false, error: "Streamer not found"}
+    }
+
+    const donations = await sqlite`
+        SELECT donator_name, amount, message, created_at
+        FROM donations
+        WHERE streamer_wallet_addr = ${streamer.wallet_addr}
+        ORDER BY created_at DESC LIMIT 50
+    `
+    return {success: true, error: null, donations}
+})
 
 app.listen({port: process.env.PORT ?? 6767, hostname: "0.0.0.0"}, ({port}) => {
     console.log(`listening on port ${port}`);
