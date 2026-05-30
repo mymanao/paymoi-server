@@ -33,7 +33,11 @@ app.ws("/paymoi", {
     }
 });
 
-app.post("/donate/pending", ({body}: { body: any }) => {
+app.get("/", () => {
+    return "Online"
+});
+
+app.post("/v1/donate/pending", ({body}: { body: any }) => {
     const {from, to, amount, donator, message} = body;
     if (!from || !to || !amount) {
         return {success: false, error: `Incomplete data`};
