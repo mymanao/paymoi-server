@@ -77,7 +77,7 @@ app.post("/v1/donate/pending", async ({body}: { body: any }) => {
     return {success: true, error: null};
 });
 
-app.listen({ port: process.env.PORT ?? 6767, hostname: "127.0.0.1" }, ({port}) => {
+app.listen({ port: process.env.PORT ?? 6767, hostname: "0.0.0.0" }, ({port}) => {
     console.log(`listening on port ${port}`);
 });
 
