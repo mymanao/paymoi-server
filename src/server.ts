@@ -6,7 +6,7 @@ import {isAddress} from "ethers";
 import type {Donations, Message} from "./types.ts";
 
 const walletSocket = new Map<string, any>();
-initDatabase()
+await initDatabase()
 
 const app = new Elysia();
 
