@@ -2,6 +2,7 @@ import {Elysia} from "elysia";
 import {startListeners} from "./listeners.ts";
 import {rateLimit} from 'elysia-rate-limit'
 import {initDatabase} from "./db.ts";
+import {isAddress} from "ethers";
 
 const walletSocket = new Map<string, any>();
 const sqlite = new Bun.SQL("sqlite://paymoi-data.db");
@@ -23,7 +24,7 @@ app.ws("/paymoi", {
         if (!msg || typeof msg !== "object" || !msg.wallet || !msg.type) return;
         if (msg.type === "register") {
             const wallet = msg.wallet.toLowerCase();
-            if (!wallet.startsWith("0x") || wallet.length !== 42) {
+            if (!isAddress(wallet)) {
                 ws.send({status: "error", error: "Invalid wallet address"});
                 return;
             }
@@ -92,7 +93,7 @@ async function deletePending(txhash: string) {
     `;
 }
 
-await startListeners(walletSocket, async (_from, to, amount, txhash) => {
+startListeners(walletSocket, async (_from, to, amount, txhash) => {
     const pending = await findPending(txhash);
     if (pending) {
         const info = pending;
