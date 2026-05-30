@@ -7,4 +7,11 @@ export async function startListeners(walletSocket: Map<string, any>, cb: (from: 
             if (!walletSocket.has(to.toLowerCase())) return;
             return cb(from.toLowerCase(), to.toLowerCase(), formatUnits(value, decimals));
         });
+
+    contracts.runner?.provider?.on("error", () => {
+        console.error("reconnecting to provider...");
+        setTimeout(() => {
+            startListeners(walletSocket, cb);
+        }, 5000);
+    })
 }
