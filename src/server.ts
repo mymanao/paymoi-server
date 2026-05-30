@@ -3,12 +3,16 @@ import {startListeners} from "./listeners.ts";
 import {rateLimit} from 'elysia-rate-limit'
 
 const walletSocket = new Map<string, any>();
-const pending = new Map<string, {
-    donator: string,
-    amount: string,
-    message: string,
-    timestamp: number,
-}>()
+const sqlite = new Bun.SQL("sqlite://paymoi-data.db");
+await sqlite`
+CREATE TABLE IF NOT EXISTS pending_donations (
+    txhash TEXT PRIMARY KEY,
+    donator TEXT,
+    amount TEXT,
+    message TEXT,
+    timestamp INTEGER
+)
+`;
 
 const app = new Elysia();
 
@@ -60,29 +64,45 @@ app.get("/", () => {
     return "Online"
 });
 
-app.post("/v1/donate/pending", ({body}: { body: any }) => {
+app.post("/v1/donate/pending", async ({body}: { body: any }) => {
     const {from, to, amount, donator, message, txhash} = body;
     if (!from || !to || !amount || !txhash) {
         return {success: false, error: `Incomplete data`};
     }
-    pending.set(txhash, {
-        donator: donator || "Anonymous",
-        message,
-        amount,
-        timestamp: Date.now(),
-    });
+    await sqlite`
+        INSERT INTO pending_donations (txhash, donator, amount, message, timestamp)
+        VALUES (${txhash}, ${donator || "Anonymous"}, ${amount}, ${message}, ${Date.now()}) ON CONFLICT(txhash) DO
+        UPDATE SET
+            donator=excluded.donator,
+            amount=excluded.amount,
+            message=excluded.message,
+            timestamp =excluded.timestamp
+    `
 
     console.log(`pending ${txhash}`);
     return {success: true, error: null};
 });
 
-app.listen(6767, ({port}) => {
+app.listen({ port: process.env.PORT ?? 6767, hostname: "127.0.0.1" }, ({port}) => {
     console.log(`listening on port ${port}`);
 });
 
-await startListeners(walletSocket, (_from, to, amount, txhash) => {
-    if (pending.has(txhash)) {
-        const info = pending.get(txhash);
+async function findPending(txhash: string) {
+    return sqlite`
+        SELECT * FROM pending_donations WHERE txhash = ${txhash}
+    `.then((res) => res[0] || null);
+}
+
+async function deletePending(txhash: string) {
+    return sqlite`
+        DELETE FROM pending_donations WHERE txhash = ${txhash}
+    `;
+}
+
+await startListeners(walletSocket, async (_from, to, amount, txhash) => {
+    const pending = await findPending(txhash);
+    if (pending) {
+        const info = pending;
         if (walletSocket.has(to)) {
             const ws = walletSocket.get(to);
             ws.send({
@@ -95,16 +115,13 @@ await startListeners(walletSocket, (_from, to, amount, txhash) => {
             });
             console.log(`sent notification to ${to} about donation of ${amount} USDC`);
         }
-        pending.delete(txhash);
+        await deletePending(txhash);
     }
 });
 
-setInterval(() => {
+setInterval(async () => {
     const now = Date.now();
-    pending.forEach((info, key) => {
-        if (now - info.timestamp > 1000 * 60 * 5) {
-            pending.delete(key);
-            console.log(`removed expired pending donation: ${key}`);
-        }
-    });
+    await sqlite`
+        DELETE FROM pending_donations WHERE timestamp < ${now - 1000 * 60 * 5}
+    `
 }, 1000 * 60);
