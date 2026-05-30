@@ -6,3 +6,8 @@ export interface Donations {
     message: string;
     txhash: string;
 }
+
+export interface Message {
+    wallet: string,
+    type: string,
+}

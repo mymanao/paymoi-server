@@ -3,7 +3,7 @@ import {startListeners} from "./listeners.ts";
 import {rateLimit} from 'elysia-rate-limit'
 import {initDatabase, sqlite} from "./db.ts";
 import {isAddress} from "ethers";
-import type {Donations} from "./types.ts";
+import type {Donations, Message} from "./types.ts";
 
 const walletSocket = new Map<string, any>();
 initDatabase()
@@ -20,7 +20,7 @@ app.ws("/paymoi", {
     open() {
         console.log("connected");
     },
-    message(ws, msg: any) {
+    message(ws, msg: Message) {
         if (!msg || typeof msg !== "object" || !msg.wallet || !msg.type) return;
         if (msg.type === "register") {
             const wallet = msg.wallet.toLowerCase();
