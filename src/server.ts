@@ -46,18 +46,18 @@ app.get("/", () => {
 });
 
 app.post("/v1/donate/pending", ({body}: { body: any }) => {
-    const {from, to, amount, donator, message} = body;
+    const {from, to, amount, donator, message, txhash} = body;
     if (!from || !to || !amount) {
         return {success: false, error: `Incomplete data`};
     }
-    pending.set(`${to.toLowerCase()}-${from.toLowerCase()}`, {
+    pending.set(txhash, {
         donator: donator || "Anonymous",
         message,
         amount,
         timestamp: Date.now(),
     });
 
-    console.log(`pending ${to.toLowerCase()}-${from.toLowerCase()}`);
+    console.log(`pending ${txhash}`);
     return {success: true, error: null};
 });
 
@@ -65,11 +65,10 @@ app.listen(6767, ({port}) => {
     console.log(`listening on port ${port}`);
 });
 
-await startListeners(walletSocket, (from, to, amount) => {
-    const key = `${to}-${from}`;
-    if (pending.has(key)) {
-        const info = pending.get(key);
-        if (walletSocket && walletSocket.has(to) && parseUnits(amount, 6) === parseUnits(info?.amount || "0", 6)) {
+await startListeners(walletSocket, (from, to, amount, txhash) => {
+    if (pending.has(txhash)) {
+        const info = pending.get(txhash);
+        if (walletSocket && walletSocket.has(to)) {
             const ws = walletSocket.get(to);
             ws.send({
                 event: "donation_received",
@@ -81,7 +80,7 @@ await startListeners(walletSocket, (from, to, amount) => {
             });
             console.log(`sent notification to ${to} about donation of ${amount} USDC`);
         }
-        pending.delete(key);
+        pending.delete(txhash);
     }
 });
 
