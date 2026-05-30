@@ -1,0 +1,33 @@
+const sqlite = new Bun.SQL("sqlite://paymoi-web-data.db");
+
+await sqlite`PRAGMA foreign_keys = ON;`
+export async function initDatabase() {
+    await sqlite`
+        CREATE TABLE IF NOT EXISTS streamers (
+            wallet_addr TEXT PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            display_name TEXT,
+            web_config TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `
+    await sqlite`
+        CREATE TABLE IF NOT EXISTS donations (
+            id TEXT PRIMARY KEY,
+            tx_hash TEXT UNIQUE NOT NULL,
+            streamer_wallet_addr TEXT REFERENCES streamers(wallet_addr) ON DELETE CASCADE,
+            donator_wallet_addr TEXT NOT NULL,
+            donator_name TEXT NOT NULL,
+            amount TEXT NOT NULL,
+            message TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `
+    await sqlite`
+        CREATE INDEX IF NOT EXISTS idx_donations_streamer_wallet_addr ON donations(streamer_wallet_addr);
+    `
+    await sqlite`
+        CREATE INDEX IF NOT EXISTS idx_donations_tx_hash ON donations(tx_hash);
+    `
+}
