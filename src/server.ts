@@ -1,6 +1,6 @@
 import {Elysia} from "elysia";
 import {startListeners} from "./listeners.ts";
-import {parseEther} from "ethers";
+import {parseUnits} from "ethers";
 
 const walletSocket = new Map<string, any>();
 const pending = new Map<string, {
@@ -54,7 +54,7 @@ app.post("/v1/donate/pending", ({body}: { body: any }) => {
     return {success: true, error: null};
 });
 
-app.listen(6767, ({ port }) => {
+app.listen(6767, ({port}) => {
     console.log(`listening on port ${port}`);
 });
 
@@ -62,7 +62,8 @@ await startListeners(walletSocket, (from, to, amount) => {
     const key = `${to}-${from}`;
     if (pending.has(key)) {
         const info = pending.get(key);
-        if (walletSocket && walletSocket.has(to) && parseEther(amount) === parseEther(info?.amount || "0")) {
+        if (walletSocket && walletSocket.has(to) && parseUnits(amount, 6) === parseUnits(info?.amount || "0", 6))
+        {
             const ws = walletSocket.get(to);
             ws.send({
                 event: "donation_received",
