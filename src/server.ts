@@ -57,7 +57,7 @@ app.listen(6767, ({ port }) => {
     console.log(`listening on port ${port}`);
 });
 
-await startListeners((from, to, amount) => {
+await startListeners(walletSocket, (from, to, amount) => {
     const key = `${to}-${from}`;
     if (pending.has(key)) {
         const info = pending.get(key);
