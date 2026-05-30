@@ -1,9 +1,10 @@
 import {Elysia} from "elysia";
 import {startListeners} from "./listeners.ts";
-import {rateLimit} from 'elysia-rate-limit'
+import {rateLimit} from "elysia-rate-limit"
 import {deletePending, findPending, initDatabase, sqlite} from "./db.ts";
 import {isAddress, verifyMessage} from "ethers";
 import type {PendingDonation, Message, Streamer, Donation} from "./types.ts";
+import {cors} from "@elysiajs/cors"
 
 const walletSocket = new Map<string, any>();
 await initDatabase()
@@ -15,6 +16,10 @@ app.use(rateLimit({
     duration: 60000,
     scoping: "scoped"
 }));
+
+app.use(cors({
+    origin: ["http://localhost:5173", "https://paypoint.otternoon.com", "https://paymoi.otternoon.com"],
+}))
 
 app.ws("/paymoi", {
     open() {
@@ -30,7 +35,7 @@ app.ws("/paymoi", {
             }
 
             try {
-                let timestamp = parseInt(msg.message.split('_')[1] || "0");
+                let timestamp = parseInt(msg.message.split("_")[1] || "0");
                 if (Math.abs(Date.now() - timestamp) > 1000 * 60 * 5) {
                     ws.send({status: "error", error: "Signature expired"});
                     return;
@@ -121,7 +126,7 @@ app.post("/v1/streamers", async ({body}: { body: any }) => {
         return {success: false, error: `Invalid request, missing message or signature`};
     }
     try {
-        let timestamp = parseInt(message.split('_')[1] || "0");
+        let timestamp = parseInt(message.split("_")[1] || "0");
         if (Math.abs(Date.now() - timestamp) > 1000 * 60 * 5) {
             return {success: false, error: `Signature expired`};
         }

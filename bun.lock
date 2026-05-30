@@ -5,6 +5,7 @@
     "": {
       "name": "paymoi",
       "dependencies": {
+        "@elysiajs/cors": "^1.4.2",
         "elysia": "^1.4.28",
         "elysia-rate-limit": "^4.6.2",
         "ethers": "^6.16.0",
@@ -23,6 +24,8 @@
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
 
     "@borewit/text-codec": ["@borewit/text-codec@0.2.2", "", {}, "sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ=="],
+
+    "@elysiajs/cors": ["@elysiajs/cors@1.4.2", "", { "peerDependencies": { "elysia": ">= 1.4.0" } }, "sha512-FTCcbH35brTLigF1W7BYySRZomgI/dBEMK9BgK9RP9Nez7zmpGh4koL/Yr1BFv8nYz7CfhRvcM8d/c+XnwMaVQ=="],
 
     "@noble/curves": ["@noble/curves@1.2.0", "", { "dependencies": { "@noble/hashes": "1.3.2" } }, "sha512-oYclrNgRaM9SsBUBVbb8M6DTV7ZHRTKugureoYEncY5c65HOmRzvSiTE3y5CYaPYJA/GVkrhXEoF0M3Ya9PMnw=="],
 
