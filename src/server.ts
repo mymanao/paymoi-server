@@ -1,6 +1,7 @@
 import {Elysia} from "elysia";
 import {startListeners} from "./listeners.ts";
 import {parseUnits} from "ethers";
+import {rateLimit} from 'elysia-rate-limit'
 
 const walletSocket = new Map<string, any>();
 const pending = new Map<string, {
@@ -11,6 +12,12 @@ const pending = new Map<string, {
 }>()
 
 const app = new Elysia();
+
+app.use(rateLimit({
+    max: 5,
+    duration: 60000,
+    scoping: "scoped"
+}));
 
 app.ws("/paymoi", {
     open() {
@@ -62,8 +69,7 @@ await startListeners(walletSocket, (from, to, amount) => {
     const key = `${to}-${from}`;
     if (pending.has(key)) {
         const info = pending.get(key);
-        if (walletSocket && walletSocket.has(to) && parseUnits(amount, 6) === parseUnits(info?.amount || "0", 6))
-        {
+        if (walletSocket && walletSocket.has(to) && parseUnits(amount, 6) === parseUnits(info?.amount || "0", 6)) {
             const ws = walletSocket.get(to);
             ws.send({
                 event: "donation_received",
