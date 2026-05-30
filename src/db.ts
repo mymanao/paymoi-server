@@ -1,7 +1,16 @@
-const sqlite = new Bun.SQL("sqlite://paymoi-web-data.db");
+const sqlite = new Bun.SQL("sqlite://paymoi-data.db");
 
-await sqlite`PRAGMA foreign_keys = ON;`
 export async function initDatabase() {
+    await sqlite`PRAGMA foreign_keys = ON;`
+    await sqlite`
+        CREATE TABLE IF NOT EXISTS pending_donations (
+            txhash TEXT PRIMARY KEY,
+            donator TEXT,
+            amount TEXT,
+            message TEXT,
+            timestamp INTEGER
+        )
+    `;
     await sqlite`
         CREATE TABLE IF NOT EXISTS streamers (
             wallet_addr TEXT PRIMARY KEY,

@@ -1,18 +1,11 @@
 import {Elysia} from "elysia";
 import {startListeners} from "./listeners.ts";
 import {rateLimit} from 'elysia-rate-limit'
+import {initDatabase} from "./db.ts";
 
 const walletSocket = new Map<string, any>();
 const sqlite = new Bun.SQL("sqlite://paymoi-data.db");
-await sqlite`
-CREATE TABLE IF NOT EXISTS pending_donations (
-    txhash TEXT PRIMARY KEY,
-    donator TEXT,
-    amount TEXT,
-    message TEXT,
-    timestamp INTEGER
-)
-`;
+initDatabase()
 
 const app = new Elysia();
 
