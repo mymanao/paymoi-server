@@ -144,22 +144,6 @@ app.post("/v1/streamers", async ({body}: { body: any }) => {
     return {success: true, error: null};
 });
 
-app.get("/v1/streamers/:name", async ({params}) => {
-    const {name} = params;
-    if (!name) {
-        return {success: false, error: `Incomplete data`};
-    }
-    const streamer = await sqlite`
-        SELECT wallet_addr, username, display_name, web_config, created_at
-        FROM streamers
-        WHERE username = ${name}
-    `.then((res) => res[0] || null);
-    if (!streamer) {
-        return {success: false, error: `Streamer not found`};
-    }
-    return {success: true, error: null, streamer};
-});
-
 app.get("/v1/streamers/wallet/:addr", async ({params}) => {
     const {addr} = params;
     if (!addr) {
@@ -172,6 +156,22 @@ app.get("/v1/streamers/wallet/:addr", async ({params}) => {
         SELECT wallet_addr, username, display_name, web_config, created_at
         FROM streamers
         WHERE wallet_addr = ${addr.toLowerCase()}
+    `.then((res) => res[0] || null);
+    if (!streamer) {
+        return {success: false, error: `Streamer not found`};
+    }
+    return {success: true, error: null, streamer};
+});
+
+app.get("/v1/streamers/:name", async ({params}) => {
+    const {name} = params;
+    if (!name) {
+        return {success: false, error: `Incomplete data`};
+    }
+    const streamer = await sqlite`
+        SELECT wallet_addr, username, display_name, web_config, created_at
+        FROM streamers
+        WHERE username = ${name}
     `.then((res) => res[0] || null);
     if (!streamer) {
         return {success: false, error: `Streamer not found`};
