@@ -11,3 +11,11 @@ export interface Message {
     wallet: string,
     type: string,
 }
+
+export interface Streamers {
+    wallet_addr: string;
+    username: string;
+    display_name: string;
+    web_config: string;
+    created_at: Date;
+}

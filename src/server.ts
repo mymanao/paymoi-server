@@ -3,7 +3,7 @@ import {startListeners} from "./listeners.ts";
 import {rateLimit} from 'elysia-rate-limit'
 import {deletePending, findPending, initDatabase, sqlite} from "./db.ts";
 import {isAddress} from "ethers";
-import type {Donations, Message} from "./types.ts";
+import type {Donations, Message, Streamers} from "./types.ts";
 
 const walletSocket = new Map<string, any>();
 await initDatabase()
@@ -77,7 +77,49 @@ app.post("/v1/donate/pending", async ({body}: { body: any }) => {
     return {success: true, error: null};
 });
 
-app.listen({ port: process.env.PORT ?? 6767, hostname: "0.0.0.0" }, ({port}) => {
+app.post("/v1/streamers", async ({body}: { body: any }) => {
+    const {wallet_addr, username, display_name, web_config} = body as Omit<Streamers, "created_at">;
+    if (!wallet_addr || !username) {
+        return {success: false, error: `Incomplete data`};
+    }
+    if (!isAddress(wallet_addr)) {
+        return {success: false, error: `Invalid wallet address`};
+    }
+    if (!/^[a-zA-Z0-9_]{3,32}$/.test(username)) {
+        return {success: false, error: `Invalid username`};
+    }
+    if (display_name && display_name.length > 128) {
+        return {success: false, error: `Display name too long`};
+    }
+    await sqlite`
+        INSERT INTO streamers (wallet_addr, username, display_name, web_config)
+        VALUES (${wallet_addr.toLowerCase()}, ${username}, ${display_name ?? username},
+                ${web_config ?? "{}"}) ON CONFLICT(wallet_addr) DO
+        UPDATE SET
+            username=excluded.username,
+            display_name=excluded.display_name,
+            web_config=excluded.web_config
+    `
+    return {success: true, error: null};
+});
+
+app.get("/v1/streamers/:name", async ({params}) => {
+    const {name} = params;
+    if (!name) {
+        return {success: false, error: `Incomplete data`};
+    }
+    const streamer = await sqlite`
+        SELECT wallet_addr, username, display_name, web_config, created_at
+        FROM streamers
+        WHERE username = ${name}
+    `.then((res) => res[0] || null);
+    if (!streamer) {
+        return {success: false, error: `Streamer not found`};
+    }
+    return {success: true, error: null, streamer};
+});
+
+app.listen({port: process.env.PORT ?? 6767, hostname: "0.0.0.0"}, ({port}) => {
     console.log(`listening on port ${port}`);
 });
 
@@ -104,6 +146,8 @@ startListeners(walletSocket, async (_from, to, amount, txhash) => {
 setInterval(async () => {
     const now = Date.now();
     await sqlite`
-        DELETE FROM pending_donations WHERE timestamp < ${now - 1000 * 60 * 5}
+        DELETE
+        FROM pending_donations
+        WHERE timestamp < ${now - 1000 * 60 * 5}
     `
 }, 1000 * 60);
