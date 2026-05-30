@@ -119,6 +119,25 @@ app.get("/v1/streamers/:name", async ({params}) => {
     return {success: true, error: null, streamer};
 });
 
+app.get("/v1/streamers/wallet/:addr", async ({params}) => {
+    const { addr } = params;
+    if (!addr) {
+        return {success: false, error: `Incomplete data`};
+    }
+    if (!isAddress(addr)) {
+        return {success: false, error: `Invalid wallet address`};
+    }
+    const streamer = await sqlite`
+        SELECT wallet_addr, username, display_name, web_config, created_at
+        FROM streamers
+        WHERE wallet_addr = ${addr.toLowerCase()}
+    `.then((res) => res[0] || null);
+    if (!streamer) {
+        return {success: false, error: `Streamer not found`};
+    }
+    return {success: true, error: null, streamer};
+});
+
 app.listen({port: process.env.PORT ?? 6767, hostname: "0.0.0.0"}, ({port}) => {
     console.log(`listening on port ${port}`);
 });
