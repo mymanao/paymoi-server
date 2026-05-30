@@ -1,6 +1,5 @@
 import {Elysia} from "elysia";
 import {startListeners} from "./listeners.ts";
-import {parseUnits} from "ethers";
 import {rateLimit} from 'elysia-rate-limit'
 
 const walletSocket = new Map<string, any>();
