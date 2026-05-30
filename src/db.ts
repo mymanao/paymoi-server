@@ -1,4 +1,4 @@
-const sqlite = new Bun.SQL("sqlite://paymoi-data.db");
+export const sqlite = new Bun.SQL("sqlite://paymoi-data.db");
 
 export async function initDatabase() {
     await sqlite`PRAGMA foreign_keys = ON;`

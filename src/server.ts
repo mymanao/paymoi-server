@@ -1,11 +1,11 @@
 import {Elysia} from "elysia";
 import {startListeners} from "./listeners.ts";
 import {rateLimit} from 'elysia-rate-limit'
-import {initDatabase} from "./db.ts";
+import {initDatabase, sqlite} from "./db.ts";
 import {isAddress} from "ethers";
+import type {Donations} from "./types.ts";
 
 const walletSocket = new Map<string, any>();
-const sqlite = new Bun.SQL("sqlite://paymoi-data.db");
 initDatabase()
 
 const app = new Elysia();
@@ -59,7 +59,7 @@ app.get("/", () => {
 });
 
 app.post("/v1/donate/pending", async ({body}: { body: any }) => {
-    const {from, to, amount, donator, message, txhash} = body;
+    const {from, to, amount, donator, message, txhash} = body as Donations;
     if (!from || !to || !amount || !txhash) {
         return {success: false, error: `Incomplete data`};
     }
