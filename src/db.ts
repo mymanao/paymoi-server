@@ -1,3 +1,5 @@
+import {startListeners} from "./listeners.ts";
+
 export const sqlite = new Bun.SQL("sqlite://paymoi-data.db");
 
 export async function initDatabase() {
@@ -39,4 +41,16 @@ export async function initDatabase() {
     await sqlite`
         CREATE INDEX IF NOT EXISTS idx_donations_tx_hash ON donations(tx_hash);
     `
+}
+
+export async function findPending(txhash: string) {
+    return sqlite`
+        SELECT * FROM pending_donations WHERE txhash = ${txhash}
+    `.then((res) => res[0] || null);
+}
+
+export async function deletePending(txhash: string) {
+    return sqlite`
+        DELETE FROM pending_donations WHERE txhash = ${txhash}
+    `;
 }

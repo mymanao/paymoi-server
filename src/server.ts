@@ -1,7 +1,7 @@
 import {Elysia} from "elysia";
 import {startListeners} from "./listeners.ts";
 import {rateLimit} from 'elysia-rate-limit'
-import {initDatabase, sqlite} from "./db.ts";
+import {deletePending, findPending, initDatabase, sqlite} from "./db.ts";
 import {isAddress} from "ethers";
 import type {Donations, Message} from "./types.ts";
 
@@ -80,18 +80,6 @@ app.post("/v1/donate/pending", async ({body}: { body: any }) => {
 app.listen({ port: process.env.PORT ?? 6767, hostname: "0.0.0.0" }, ({port}) => {
     console.log(`listening on port ${port}`);
 });
-
-async function findPending(txhash: string) {
-    return sqlite`
-        SELECT * FROM pending_donations WHERE txhash = ${txhash}
-    `.then((res) => res[0] || null);
-}
-
-async function deletePending(txhash: string) {
-    return sqlite`
-        DELETE FROM pending_donations WHERE txhash = ${txhash}
-    `;
-}
 
 startListeners(walletSocket, async (_from, to, amount, txhash) => {
     const pending = await findPending(txhash);
