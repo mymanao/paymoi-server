@@ -10,8 +10,8 @@ export async function startListeners(walletSocket: Map<string, any>, cb: (from: 
 
     contracts.runner?.provider?.on("error", () => {
         console.error("reconnecting to provider...");
+        contracts.removeAllListeners();
         setTimeout(() => {
-            contracts.removeAllListeners();
             startListeners(walletSocket, cb);
         }, 5000);
     })
