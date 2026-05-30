@@ -24,8 +24,14 @@ app.ws("/paymoi", {
     },
     message(ws, msg: any) {
         if (!msg || typeof msg !== "object" || !msg.wallet || !msg.type) return;
-        if (msg.type === "register" && msg.wallet) {
-            walletSocket.set(msg.wallet.toLowerCase(), ws);
+        const wallet = msg.wallet.toLowerCase();
+        if (!wallet.startsWith("0x") || wallet.length !== 42) {
+            ws.send({status: "error", error: "Invalid wallet address"});
+            return;
+        }
+
+        if (msg.type === "register") {
+            walletSocket.set(wallet, ws);
         }
         ws.send({status: "success", wallet: msg.wallet});
         console.log(`registered ${msg.wallet}`);
