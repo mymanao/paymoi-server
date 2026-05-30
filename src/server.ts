@@ -46,7 +46,7 @@ app.get("/", () => {
 
 app.post("/v1/donate/pending", ({body}: { body: any }) => {
     const {from, to, amount, donator, message, txhash} = body;
-    if (!from || !to || !amount) {
+    if (!from || !to || !amount || !txhash) {
         return {success: false, error: `Incomplete data`};
     }
     pending.set(txhash, {
