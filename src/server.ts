@@ -23,7 +23,7 @@ app.ws("/paymoi", {
         console.log("connected");
     },
     message(ws, msg: any) {
-        if (!msg) return;
+        if (!msg || typeof msg !== "object" || !msg.wallet || !msg.type) return;
         if (msg.type === "register" && msg.wallet) {
             walletSocket.set(msg.wallet.toLowerCase(), ws);
         }
