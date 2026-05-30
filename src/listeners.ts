@@ -9,8 +9,11 @@ export async function startListeners(walletSocket: Map<string, any>, cb: (from: 
             return cb(from.toLowerCase(), to.toLowerCase(), formatUnits(value, decimals), event.log.transactionHash);
         });
 
+    let reconnecting = false;
     contracts.runner?.provider?.on("error", () => {
         console.error("reconnecting to provider...");
+        if (reconnecting) return;
+        reconnecting = true;
         contracts.removeAllListeners();
         setTimeout(() => {
             startListeners(walletSocket, cb);
