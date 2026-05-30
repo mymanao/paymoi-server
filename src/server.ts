@@ -2,7 +2,7 @@ import {Elysia} from "elysia";
 import {startListeners} from "./listeners.ts";
 import {rateLimit} from 'elysia-rate-limit'
 import {deletePending, findPending, initDatabase, sqlite} from "./db.ts";
-import {isAddress} from "ethers";
+import {isAddress, verifyMessage} from "ethers";
 import type {Donations, Message, Streamers} from "./types.ts";
 
 const walletSocket = new Map<string, any>();
@@ -78,7 +78,17 @@ app.post("/v1/donate/pending", async ({body}: { body: any }) => {
 });
 
 app.post("/v1/streamers", async ({body}: { body: any }) => {
-    const {wallet_addr, username, display_name, web_config} = body as Omit<Streamers, "created_at">;
+    const {
+        wallet_addr,
+        username,
+        display_name,
+        web_config,
+        message,
+        signature
+    } = body as Omit<Streamers, "created_at"> & {
+        message: string,
+        signature: string
+    };
     if (!wallet_addr || !username) {
         return {success: false, error: `Incomplete data`};
     }
@@ -90,6 +100,21 @@ app.post("/v1/streamers", async ({body}: { body: any }) => {
     }
     if (display_name && display_name.length > 128) {
         return {success: false, error: `Display name too long`};
+    }
+    if (!message || !signature) {
+        return {success: false, error: `Invalid request, missing message or signature`};
+    }
+    try {
+        let timestamp = parseInt(message.split('_')[1] || "0");
+        if (Math.abs(Date.now() - timestamp) > 1000 * 60 * 5) {
+            return {success: false, error: `Signature expired`};
+        }
+        const addr = verifyMessage(message, signature);
+        if (addr.toLowerCase() !== wallet_addr.toLowerCase()) {
+            return {success: false, error: `Invalid signature`};
+        }
+    } catch (e) {
+        return {success: false, error: `Invalid signature`};
     }
     await sqlite`
         INSERT INTO streamers (wallet_addr, username, display_name, web_config)
@@ -120,7 +145,7 @@ app.get("/v1/streamers/:name", async ({params}) => {
 });
 
 app.get("/v1/streamers/wallet/:addr", async ({params}) => {
-    const { addr } = params;
+    const {addr} = params;
     if (!addr) {
         return {success: false, error: `Incomplete data`};
     }
