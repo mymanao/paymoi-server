@@ -5,9 +5,19 @@ import {deletePending, findPending, initDatabase, sqlite} from "./db.ts";
 import {isAddress, verifyMessage} from "ethers";
 import type {PendingDonation, Message, Streamer, Donation} from "./types.ts";
 import {cors} from "@elysiajs/cors"
+import {S3Client, PutObjectCommand} from "@aws-sdk/client-s3"
 
 const walletSocket = new Map<string, any>();
 await initDatabase()
+
+const r2 = new S3Client({
+    region: "auto",
+    endpoint: process.env.R2_ENDPOINT,
+    credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    }
+});
 
 const app = new Elysia();
 
@@ -235,6 +245,61 @@ app.get("/v1/donations/:username", async ({params, set}) => {
         ORDER BY created_at DESC LIMIT 50
     `
     return {success: true, error: null, donations}
+})
+
+app.post("/v1/streamers/upload/:type", async ({params, body, set, request}) => {
+    const {type} = params
+    if (type !== "avatar" && type !== "banner") {
+        set.status = 400
+        return {success: false, error: "Invalid type"}
+    }
+
+    const formData = await request.formData()
+    const file = formData.get("file") as File
+    const wallet_addr = formData.get("wallet_addr") as string
+    const message = formData.get("message") as string
+    const signature = formData.get("signature") as string
+
+    if (!file || !wallet_addr || !message || !signature) {
+        return {success: false, error: "Incomplete data"}
+    }
+    if (!isAddress(wallet_addr)) {
+        return {success: false, error: "Invalid wallet address"}
+    }
+
+    try {
+        const timestamp = parseInt(message.split("_")[1] || "0")
+        if (Math.abs(Date.now() - timestamp) > 1000 * 60 * 5) {
+            return {success: false, error: "Signature expired"}
+        }
+        const addr = verifyMessage(message, signature)
+        if (addr.toLowerCase() !== wallet_addr.toLowerCase()) {
+            return {success: false, error: "Invalid signature"}
+        }
+    } catch {
+        return {success: false, error: "Invalid signature"}
+    }
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+        return {success: false, error: "Invalid file type"}
+    }
+    if (file.size > 12 * 1024 * 1024) {
+        return {success: false, error: "File too large"}
+    }
+
+    const ext = file.type.split("/")[1]
+    const key = `${type}/${wallet_addr.toLowerCase()}.${ext}`
+    const buffer = Buffer.from(await file.arrayBuffer())
+
+    await r2.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET!,
+        Key: key,
+        Body: buffer,
+        ContentType: file.type,
+    }))
+
+    const url = `https://pawmi.otternoon.com/${key}`
+    return {success: true, url}
 })
 
 app.listen({port: process.env.PORT ?? 6767, hostname: "0.0.0.0"}, ({port}) => {
