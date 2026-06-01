@@ -247,18 +247,19 @@ app.get("/v1/donations/:username", async ({params, set}) => {
     return {success: true, error: null, donations}
 })
 
-app.post("/v1/streamers/upload/:type", async ({params, body, set, request}) => {
+app.post("/v1/streamers/upload/:type", async ({params, body, set}) => {
     const {type} = params
     if (type !== "avatar" && type !== "banner") {
         set.status = 400
         return {success: false, error: "Invalid type"}
     }
 
-    const formData = await request.formData()
-    const file = formData.get("file") as File
-    const wallet_addr = formData.get("wallet_addr") as string
-    const message = formData.get("message") as string
-    const signature = formData.get("signature") as string
+    const { file, wallet_addr, message, signature } = body as {
+        file: File,
+        wallet_addr: string,
+        message: string,
+        signature: string
+    }
 
     if (!file || !wallet_addr || !message || !signature) {
         return {success: false, error: "Incomplete data"}
