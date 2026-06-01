@@ -22,11 +22,11 @@ const r2 = new S3Client({
 
 const app = new Elysia();
 
-app.use(rateLimit({
-    max: 5,
-    duration: 60000,
-    scoping: "scoped"
-}));
+// app.use(rateLimit({
+//     max: 5,
+//     duration: 60000,
+//     scoping: "scoped"
+// }));
 
 app.use(cors({
     origin: ["http://localhost:5173", "https://paypoint.otternoon.com", "https://paymoi.otternoon.com"],
