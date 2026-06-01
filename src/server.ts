@@ -137,6 +137,15 @@ app.post("/v1/streamers", async ({body}: { body: any }) => {
     } catch (e) {
         return {success: false, error: `Invalid signature`};
     }
+    const existing = await sqlite`
+        SELECT wallet_addr
+        FROM streamers
+        WHERE username = ${username}
+    `.then(res => res[0] || null)
+
+    if (existing && existing.wallet_addr !== wallet_addr.toLowerCase()) {
+        return {success: false, error: 'Username already taken'}
+    }
     await sqlite`
         INSERT INTO streamers (wallet_addr, username, display_name, web_config)
         VALUES (${wallet_addr.toLowerCase()}, ${username}, ${display_name ?? username},
