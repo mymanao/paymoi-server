@@ -8,6 +8,7 @@ import {cors} from "@elysiajs/cors"
 import {S3Client, PutObjectCommand} from "@aws-sdk/client-s3"
 
 const walletSocket = new Map<string, any>();
+const overlaySocket = new Map<string, any>()
 await initDatabase()
 
 const r2 = new S3Client({
@@ -36,8 +37,18 @@ app.ws("/paymoi", {
         console.log("connected");
     },
     message(ws, msg: Message) {
-        if (!msg || typeof msg !== "object" || !msg.wallet || !msg.type || !msg.wallet || !msg.signature) return;
+        if (!msg || typeof msg !== "object" || !msg.type) return;
+        if (msg.type === "overlay" && msg.wallet) {
+            const wallet = (msg as any).wallet.toLowerCase()
+            if (!isAddress(wallet)) {
+                ws.send({status: "error", error: "Invalid wallet address"})
+                return
+            }
+            overlaySocket.set(wallet, ws)
+            ws.send({status: "success"})
+        }
         if (msg.type === "register") {
+            if (!msg.wallet || !msg.signature) return;
             const wallet = msg.wallet.toLowerCase();
             if (!isAddress(wallet)) {
                 ws.send({status: "error", error: "Invalid wallet address"});
@@ -76,12 +87,14 @@ app.ws("/paymoi", {
         }
     },
     close(ws) {
-        walletSocket.forEach((socket, wallet) => {
-            if (socket === ws) {
-                walletSocket.delete(wallet);
-                console.log(`disconnected: ${wallet}`);
-            }
-        });
+        for (const map of [walletSocket, overlaySocket]) {
+            map.forEach((socket, wallet) => {
+                if (socket === ws) {
+                    map.delete(wallet)
+                    console.log(`disconnected: ${wallet}`)
+                }
+            })
+        }
     }
 });
 
@@ -254,7 +267,7 @@ app.post("/v1/streamers/upload/:type", async ({params, body, set}) => {
         return {success: false, error: "Invalid type"}
     }
 
-    const { file, wallet_addr, message, signature } = body as {
+    const {file, wallet_addr, message, signature} = body as {
         file: File,
         wallet_addr: string,
         message: string,
@@ -311,17 +324,17 @@ startListeners(walletSocket, async (_from, to, amount, txhash) => {
     const pending = await findPending(txhash);
     if (pending) {
         const info = pending;
-        if (walletSocket.has(to)) {
-            const ws = walletSocket.get(to);
-            ws.send({
-                event: "donation_received",
-                donator: info?.donator,
-                message: info?.message,
-                amount,
-                currency: "USDC",
-                timestamp: new Date().toISOString()
-            });
-            console.log(`sent notification to ${to} about donation of ${amount} USDC`);
+        for (const map of [walletSocket, overlaySocket]) {
+            if (map.has(to)) {
+                map.get(to).send({
+                    event: "donation_received",
+                    donator: info?.donator,
+                    message: info?.message,
+                    amount,
+                    currency: "USDC",
+                    timestamp: new Date().toISOString()
+                })
+            }
         }
         await deletePending(txhash);
     }
