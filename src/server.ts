@@ -38,6 +38,22 @@ app.ws("/paymoi", {
     },
     message(ws, msg: Message) {
         if (!msg || typeof msg !== "object" || !msg.type) return;
+        if (msg.type === "test_alert") {
+            const {wallet, event} = msg as any;
+            if (!wallet || !isAddress(wallet)) {
+                ws.send(JSON.stringify({status: "error", error: "Invalid wallet address"}));
+                return;
+            }
+            const targetSocket = overlaySocket.get(wallet.toLowerCase());
+            if (!targetSocket || targetSocket.readyState !== 1) {
+                ws.send(JSON.stringify({status: "error", error: "Overlay not connected"}));
+                return;
+            }
+            targetSocket.send(JSON.stringify(event));
+            ws.send(JSON.stringify({status: "success", message: "Test alert sent"}));
+            return;
+        }
+        ;
         if (msg.type === "overlay" && msg.wallet) {
             const wallet = (msg as any).wallet.toLowerCase()
             if (!isAddress(wallet)) {
