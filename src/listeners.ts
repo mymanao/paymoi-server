@@ -1,11 +1,11 @@
 import {type BigNumberish, ContractEventPayload, formatUnits} from "ethers";
 import {contracts, decimals} from "./contracts.ts";
 
-export function startListeners(walletSocket: Map<string, any>, cb: (from: string, to: string, amount: string, txhash: string) => void) {
+export function startListeners(walletSocket: Map<string, any>, overlaySocket: Map<string, any>, cb: (from: string, to: string, amount: string, txhash: string) => void) {
     contracts.removeAllListeners();
     contracts.on("Transfer",
         (from: string, to: string, value: BigNumberish, event: ContractEventPayload) => {
-            if (!walletSocket.has(to.toLowerCase())) return;
+            if (!walletSocket.has(to.toLowerCase()) && !overlaySocket.has(to.toLowerCase())) return;
             return cb(from.toLowerCase(), to.toLowerCase(), formatUnits(value, decimals), event.log.transactionHash);
         });
 
@@ -17,7 +17,7 @@ export function startListeners(walletSocket: Map<string, any>, cb: (from: string
         contracts.removeAllListeners();
         setTimeout(() => {
             reconnecting = false;
-            startListeners(walletSocket, cb);
+            startListeners(walletSocket, overlaySocket, cb);;
         }, 5000);
     })
 }

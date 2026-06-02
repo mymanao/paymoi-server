@@ -336,7 +336,7 @@ app.listen({port: process.env.PORT ?? 6767, hostname: "0.0.0.0"}, ({port}) => {
     console.log(`listening on port ${port}`);
 });
 
-startListeners(walletSocket, async (_from, to, amount, txhash) => {
+startListeners(walletSocket, overlaySocket, async (_from, to, amount, txhash) => {
     const pending = await findPending(txhash);
     if (pending) {
         const info = pending;
