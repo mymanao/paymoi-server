@@ -1,13 +1,20 @@
-import {type BigNumberish, ContractEventPayload, formatUnits} from "ethers";
+import {ContractEventPayload, formatUnits} from "ethers";
 import {contracts, decimals} from "./contracts.ts";
 
 export function startListeners(walletSocket: Map<string, any>, overlaySocket: Map<string, any>, cb: (from: string, to: string, amount: string, txhash: string) => void) {
     contracts.removeAllListeners();
-    contracts.on("Transfer",
-        (from: string, to: string, value: BigNumberish, event: ContractEventPayload) => {
-            if (!walletSocket.has(to.toLowerCase()) && !overlaySocket.has(to.toLowerCase())) return;
-            return cb(from.toLowerCase(), to.toLowerCase(), formatUnits(value, decimals), event.log.transactionHash);
-        });
+    const address = Array.from(new Set([
+        ...walletSocket.keys(),
+        ...overlaySocket.keys()
+    ]));
+
+    address.forEach(addr => {
+        contracts.on(contracts.filters.Transfer!(null, addr),
+            (event: ContractEventPayload) => {
+                const [from, to, value] = event.args
+                return cb(from.toLowerCase(), to!.toLowerCase(), formatUnits(value, decimals), event.log.transactionHash);
+            });
+    })
 
     let reconnecting = false;
     contracts.runner?.provider?.on("error", () => {
@@ -17,7 +24,8 @@ export function startListeners(walletSocket: Map<string, any>, overlaySocket: Ma
         contracts.removeAllListeners();
         setTimeout(() => {
             reconnecting = false;
-            startListeners(walletSocket, overlaySocket, cb);;
+            startListeners(walletSocket, overlaySocket, cb);
+            ;
         }, 5000);
     })
 }
