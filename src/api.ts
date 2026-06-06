@@ -179,8 +179,8 @@ export function registerAPI(app: Elysia) {
     })
 
     app.post("/v1/streamers/upload/:type", async ({params, body, set}) => {
-        const {type} = params
-        if (type !== "avatar" && type !== "banner") {
+        const {type} = params as { type: "avatar" | "banner" | "donationImage" | "donationSound" }
+        if (type !== "avatar" && type !== "banner" && type !== "donationImage" && type !== "donationSound") {
             set.status = 400
             return {success: false, error: "Invalid type"}
         }
@@ -212,9 +212,16 @@ export function registerAPI(app: Elysia) {
             return {success: false, error: "Invalid signature"}
         }
 
-        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-            return {success: false, error: "Invalid file type"}
+        if (type !== "donationSound") {
+            if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+                return {success: false, error: "Invalid file type"}
+            }
+        } else {
+            if (!["audio/mpeg", "audio/wav", "audio/webm", "audio/ogg"].includes(file.type)) {
+                return {success: false, error: "Invalid file type"}
+            }
         }
+
         if (file.size > 12 * 1024 * 1024) {
             return {success: false, error: "File too large"}
         }
