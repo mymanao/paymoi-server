@@ -1,1 +1,1 @@
-import "./src/server.ts"
+import "./src/server.ts";
