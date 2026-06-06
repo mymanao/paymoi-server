@@ -1,5 +1,3 @@
-import {startListeners} from "./listeners.ts";
-
 export const sqlite = new Bun.SQL("sqlite://paymoi-data.db");
 
 export async function initDatabase() {
