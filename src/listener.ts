@@ -1,22 +1,31 @@
 import { type ContractEventPayload, formatUnits, type Listener } from "ethers";
 import { contracts, decimals } from "./contracts.ts";
-import { deletePending, findPending } from "./db.ts";
 import { overlaySocket, walletSocket } from "./socket.ts";
+import { confirmPending, findPending } from "./db.ts";
+import type { Donation } from "./types.ts";
 
 const listeners = new Map<string, Listener>();
 
 async function cbTransaction(ev: ContractEventPayload) {
-  const [_from, to, value] = ev.args;
+  const [from, to, value] = ev.args;
   const txhash = ev.log.transactionHash;
   const amount = formatUnits(value, decimals);
-  const pending = await findPending(txhash.toLowerCase());
+  const pending = (await findPending(txhash)) as Donation;
+
   if (pending) {
+    if (pending.status !== "pending") return;
     const info = pending;
+    if (
+      from.toLowerCase() !== pending.donator_wallet_addr.toLowerCase() ||
+      to.toLowerCase() !== pending.streamer_wallet_addr.toLowerCase()
+    ) {
+      return;
+    }
     for (const map of [walletSocket, overlaySocket]) {
       if (map.has(to.toLowerCase())) {
         map.get(to.toLowerCase()).send({
           event: "donation_received",
-          donator: info?.donator,
+          donator: info?.donator_name,
           message: info?.message,
           amount,
           currency: "USDC",
@@ -24,7 +33,7 @@ async function cbTransaction(ev: ContractEventPayload) {
         });
       }
     }
-    await deletePending(txhash.toLowerCase());
+    await confirmPending(txhash);
   }
 }
 

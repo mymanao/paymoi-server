@@ -2,7 +2,7 @@ import type { Elysia } from "elysia";
 import { sqlite } from "./db.ts";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { isAddress, verifyMessage } from "ethers";
-import type { Donation, PendingDonation, Streamer } from "./types.ts";
+import type { Donation, Streamer } from "./types.ts";
 import { addTxListener } from "./listener.ts";
 
 const r2 = new S3Client({
@@ -17,26 +17,6 @@ const r2 = new S3Client({
 export function registerAPI(app: Elysia) {
   app.get("/", () => {
     return "Online";
-  });
-
-  app.post("/v1/donate/pending", async ({ body }: { body: any }) => {
-    const { from, to, amount, donator, message, txhash } =
-      body as PendingDonation;
-    if (!from || !to || !amount || !txhash) {
-      return { success: false, error: `Incomplete data` };
-    }
-    await sqlite`
-        INSERT INTO pending_donations (txhash, donator, amount, message, timestamp)
-        VALUES (${txhash}, ${donator || "Anonymous"}, ${amount}, ${message}, ${Date.now()}) ON CONFLICT(txhash) DO
-        UPDATE SET
-            donator=excluded.donator,
-            amount=excluded.amount,
-            message=excluded.message,
-            timestamp =excluded.timestamp
-    `;
-
-    console.log(`pending ${txhash}`);
-    return { success: true, error: null };
   });
 
   app.post("/v1/streamers", async ({ body }: { body: any }) => {
@@ -146,9 +126,18 @@ export function registerAPI(app: Elysia) {
       donator_name,
       amount,
       message,
+      signMessage,
+      signature,
     } = body as Donation;
 
-    if (!tx_hash || !streamer_wallet_addr || !donator_wallet_addr || !amount) {
+    if (
+      !tx_hash ||
+      !streamer_wallet_addr ||
+      !donator_wallet_addr ||
+      !amount ||
+      !signMessage ||
+      !signature
+    ) {
       set.status = 400;
       return { success: false, error: "Incomplete data" };
     }
@@ -157,12 +146,45 @@ export function registerAPI(app: Elysia) {
       return { success: false, error: "Invalid wallet address" };
     }
 
-    await sqlite`
-        INSERT INTO donations (id, tx_hash, streamer_wallet_addr, donator_wallet_addr, donator_name, amount, message)
-        VALUES (${crypto.randomUUID()}, ${tx_hash}, ${streamer_wallet_addr.toLowerCase()},
+    try {
+      const address = verifyMessage(signMessage, signature);
+      const data = JSON.parse(signMessage) as {
+        tx_hash: string;
+        from: string;
+        to: string;
+        amount: string;
+        timestamp: number;
+      };
+
+      if (Math.abs(Date.now() - data.timestamp) > 5 * 60 * 1000) {
+        return { success: false, error: "Signature expired" };
+      }
+
+      if (address.toLowerCase() !== donator_wallet_addr.toLowerCase()) {
+        return { success: false, error: "Invalid signature" };
+      }
+
+      if (
+        data.tx_hash.toLowerCase() !== tx_hash.toLowerCase() ||
+        data.from.toLowerCase() !== donator_wallet_addr.toLowerCase() ||
+        data.to.toLowerCase() !== streamer_wallet_addr.toLowerCase() ||
+        data.amount !== amount
+      ) {
+        return { success: false, error: "Data mismatch" };
+      }
+      await sqlite`
+        INSERT INTO donations (id, tx_hash, streamer_wallet_addr, donator_wallet_addr, donator_name, amount, message, status)
+        VALUES (${Bun.randomUUIDv7()}, ${tx_hash}, ${streamer_wallet_addr.toLowerCase()},
                 ${donator_wallet_addr.toLowerCase()}, ${donator_name ?? "Anonymous"}, ${amount},
-                ${message ?? ""}) ON CONFLICT(tx_hash) DO NOTHING
+                ${message ?? ""}, 'pending') 
+        ON CONFLICT(tx_hash)
+        DO UPDATE SET
+            donator_name = excluded.donator_name,
+            message = excluded.message
     `;
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
     return { success: true, error: null };
   });
 

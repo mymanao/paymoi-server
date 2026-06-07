@@ -3,15 +3,6 @@ export const sqlite = new Bun.SQL("sqlite://paymoi-data.db");
 export async function initDatabase() {
   await sqlite`PRAGMA foreign_keys = ON;`;
   await sqlite`
-        CREATE TABLE IF NOT EXISTS pending_donations (
-            txhash TEXT PRIMARY KEY,
-            donator TEXT,
-            amount TEXT,
-            message TEXT,
-            timestamp INTEGER
-        )
-    `;
-  await sqlite`
         CREATE TABLE IF NOT EXISTS streamers (
             wallet_addr TEXT PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
@@ -41,14 +32,14 @@ export async function initDatabase() {
     `;
 }
 
-export async function findPending(txhash: string) {
-  return sqlite`
-        SELECT * FROM pending_donations WHERE txhash = ${txhash}
-    `.then((res) => res[0] || null);
+export async function findPending(tx_hash: string) {
+  return sqlite`SELECT * FROM donations WHERE status = 'pending' AND tx_hash = ${tx_hash}`;
 }
 
-export async function deletePending(txhash: string) {
-  return sqlite`
-        DELETE FROM pending_donations WHERE txhash = ${txhash}
-    `;
+export async function confirmPending(tx_hash: string) {
+  await sqlite`
+    UPDATE donations
+    SET status = 'confirmed'
+    WHERE tx_hash = ${tx_hash}
+  `;
 }

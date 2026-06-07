@@ -152,15 +152,6 @@ streamers.forEach((s) => {
   addTxListener(s.wallet_addr);
 });
 
-setInterval(async () => {
-  const now = Date.now();
-  await sqlite`
-        DELETE
-        FROM pending_donations
-        WHERE timestamp < ${now - 1000 * 60 * 5}
-    `;
-}, 1000 * 60);
-
 setInterval(
   () => {
     const now = Date.now();

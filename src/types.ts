@@ -1,12 +1,3 @@
-export interface PendingDonation {
-  from: string;
-  to: string;
-  amount: string;
-  donator: string;
-  message: string;
-  txhash: string;
-}
-
 export interface Donation {
   id: string;
   tx_hash: string;
@@ -15,6 +6,8 @@ export interface Donation {
   donator_name: string;
   amount: string;
   message: string;
+  signMessage: string;
+  signature: string;
   status: "pending" | "confirmed" | "failed";
   created_at: Date;
 }

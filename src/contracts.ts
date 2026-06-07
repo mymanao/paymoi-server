@@ -10,7 +10,7 @@ const wsUrl =
   process.env.NODE_ENV === "production"
     ? `wss://base-mainnet.infura.io/ws/v3/${process.env.API_KEY}`
     : `wss://base-sepolia.infura.io/ws/v3/${process.env.API_KEY}`;
-const provider = new ethers.WebSocketProvider(wsUrl, network);
+export const provider = new ethers.WebSocketProvider(wsUrl, network);
 export const contracts = new ethers.Contract(baseAddress, abi, provider);
 
 export let decimals = 6;
