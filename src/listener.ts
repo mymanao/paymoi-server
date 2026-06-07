@@ -10,7 +10,7 @@ async function cbTransaction(ev: ContractEventPayload) {
   const [from, to, value] = ev.args;
   const txhash = ev.log.transactionHash;
   const amount = formatUnits(value, decimals);
-  const pending = (await findPending(txhash)) as Donation;
+  const [pending] = (await findPending(txhash)) as [Donation];
 
   if (pending) {
     if (pending.status !== "pending") return;
